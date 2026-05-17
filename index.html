@@ -395,12 +395,12 @@ async function fetchNews(catKey){
   if(cache[catKey])return cache[catKey];
   const cat=CATS[catKey];
   const apiKey='pub_ffe76a273f6244708d156f7b883d3115';
-  let url=`https://newsdata.io/api/1/latest?apikey=${apiKey}&country=${uCountry.toLowerCase()}&language=${uLang}&category=${cat.category}&size=50`;
+  let url=`https://newsdata.io/api/1/news?apikey=${apiKey}&country=${uCountry.toLowerCase()}&language=${uLang}&category=${cat.category}&size=10`;
   if(uLang!=='en')url+=`,en`;
   try{
     const resp=await fetch(url);
     const data=await resp.json();
-    if(data.status==='error')return [];
+    if(data.status==='error'){console.error('API Error:',JSON.stringify(data));return [];}
     const results=Array.isArray(data.results)?data.results:[];
     const seen=new Set();
     const deduped=results.filter(a=>{
@@ -450,12 +450,13 @@ function openArticle(id){
 async function renderHome(){
   const main=document.getElementById('main');
   main.innerHTML=`<div class="loading-box"><div class="spinner"></div><p>${t('loading')}</p></div>`;
-  const results=await Promise.all(CAT_KEYS.map(k=>fetchNews(k)));
   let html='';
-  CAT_KEYS.forEach((key,i)=>{
-    const top4=results[i].slice(0,4);if(!top4.length)return;
+  for(const key of CAT_KEYS){
+    const arts=await fetchNews(key);
+    const top4=arts.slice(0,4);if(!top4.length)continue;
     html+=`<div class="cat-block"><div class="cat-header"><div class="section-title">${CATS[key].icon} ${t(key)}</div><button class="see-more-btn" onclick="showPage('${key}')">${t('more')}</button></div><div class="cards-grid">${top4.map(a=>cardHTML(a,key)).join('')}</div></div>`;
-  });
+    await new Promise(r=>setTimeout(r,500));
+  }
   main.innerHTML=html||`<div class="err-box">${t('noNews')}</div>`;
 }
 
