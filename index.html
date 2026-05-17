@@ -297,12 +297,12 @@ const FLAG_COLORS = {
 };
 
 const CATS = {
-  politics:     {icon:'🏛️',category:'politics'},
-  business:     {icon:'💹',category:'business'},
-  sports:       {icon:'⚽',category:'sports'},
-  health:       {icon:'🏥',category:'health'},
-  entertainment:{icon:'🎬',category:'entertainment'},
-  science:      {icon:'🔬',category:'technology'},
+  politics:     {icon:'🏛️', topic:'world'},
+  business:     {icon:'💹', topic:'business'},
+  sports:       {icon:'⚽', topic:'sports'},
+  health:       {icon:'🏥', topic:'health'},
+  entertainment:{icon:'🎬', topic:'entertainment'},
+  science:      {icon:'🔬', topic:'technology'},
 };
 const CAT_KEYS = ['politics','business','sports','health','entertainment','science'];
 
@@ -394,25 +394,32 @@ function getSourceType(sid){
 async function fetchNews(catKey){
   if(cache[catKey])return cache[catKey];
   const cat=CATS[catKey];
-  const apiKey='pub_ffe76a273f6244708d156f7b883d3115';
-  let url=`https://newsdata.io/api/1/news?apikey=${apiKey}&country=${uCountry.toLowerCase()}&language=${uLang}&category=${cat.category}&size=10`;
-  if(uLang!=='en')url+=`,en`;
+  const apiKey='b05eaa2ec2b3c13cbfeff5a9d4154de6';
+  const lang=uLang==='ar'?'ar':uLang==='fr'?'fr':uLang==='de'?'de':uLang==='it'?'it':uLang==='pt'?'pt':uLang==='es'?'es':'en';
+  const country=uCountry.toLowerCase();
+  const url=`https://gnews.io/api/v4/top-headlines?token=${apiKey}&topic=${cat.topic}&lang=${lang}&country=${country}&max=10`;
   try{
     const resp=await fetch(url);
     const data=await resp.json();
-    if(data.status==='error'){console.error('API Error:',JSON.stringify(data));return [];}
-    const results=Array.isArray(data.results)?data.results:[];
+    if(data.errors)return [];
+    const results=Array.isArray(data.articles)?data.articles:[];
     const seen=new Set();
-    const deduped=results.filter(a=>{
-      if(!a.title||seen.has(a.source_id))return false;
-      seen.add(a.source_id);return true;
-    });
-    const tagged=deduped.map(a=>({
-      title:a.title||'',summary:a.description||'',
-      content:a.content||a.description||'',image:a.image_url||'',
-      source:a.source_id||'',sourceType:getSourceType(a.source_id||''),
-      date:a.pubDate?a.pubDate.slice(0,10):'',url:a.link||'#'
-    }));
+    const tagged=results
+      .filter(a=>{
+        const src=a.source?.name||'';
+        if(!a.title||seen.has(src))return false;
+        seen.add(src);return true;
+      })
+      .map(a=>({
+        title:a.title||'',
+        summary:a.description||'',
+        content:a.content||a.description||'',
+        image:a.image||'',
+        source:a.source?.name||'',
+        sourceType:getSourceType(a.source?.name||''),
+        date:a.publishedAt?a.publishedAt.slice(0,10):'',
+        url:a.url||'#'
+      }));
     const order={official:0,global:1,normal:2};
     tagged.sort((a,b)=>order[a.sourceType]-order[b.sourceType]);
     if(tagged.length)cache[catKey]=tagged;
